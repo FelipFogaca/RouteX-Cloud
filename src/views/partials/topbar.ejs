@@ -1,0 +1,14 @@
+<aside class="logistics-sidebar no-print">
+  <a class="logistics-brand" href="/dashboard" aria-label="RouteX - Central logística"><span class="logistics-brand-mark"><svg viewBox="0 0 24 24"><path d="M3 6.5h10v8H3zM13 9h4l3 3v2.5h-7zM6.5 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span><span><strong>RouteX</strong><small>Logística Bela Metais</small></span></a>
+  <div class="logistics-nav-section"><span class="logistics-nav-label">Central logística</span><nav class="logistics-nav">
+    <a href="/dashboard" class="<%= activePage === 'dashboard' ? 'active' : '' %>"><span class="nav-icon">⌂</span><span><strong>Início</strong><small>Operação e atalhos</small></span></a>
+    <a href="/RouteX" class="<%= activePage === 'planner' ? 'active' : '' %>"><span class="nav-icon">⇢</span><span><strong>Planejar rota</strong><small>NF-e e otimização</small></span></a>
+    <a href="/routes" class="<%= activePage === 'routes' ? 'active' : '' %>"><span class="nav-icon">≡</span><span><strong>Rotas geradas</strong><small>Histórico e planilhas</small></span></a>
+    <a href="/schedule" class="<%= activePage === 'schedule' ? 'active' : '' %>"><span class="nav-icon">▦</span><span><strong>Agenda do veículo</strong><small>Calendário compartilhado</small></span></a>
+    <a href="/schedule/mine" class="<%= activePage === 'mine' ? 'active' : '' %>"><span class="nav-icon">✓</span><span><strong>Meus agendamentos</strong><small>Editar ou cancelar</small></span></a>
+    <a href="/RouteX/locations" class="<%= activePage === 'locations' ? 'active' : '' %>"><span class="nav-icon">⌖</span><span><strong>Pontos operacionais</strong><small>Lojas e depósitos</small></span></a>
+    <% if (user?.role === 'admin') { %><a href="/admin" class="<%= activePage === 'admin' ? 'active' : '' %>"><span class="nav-icon">⚙</span><span><strong>Administração</strong><small>Usuários e operação</small></span></a><% } %>
+  </nav></div>
+  <div class="logistics-sidebar-guide"><span class="guide-icon">●</span><div><strong>Veículo compartilhado</strong><small>Confira a agenda antes de reservar o período.</small></div></div>
+  <div class="logistics-user"><div class="user-avatar"><%= user?.name ? user.name.charAt(0).toUpperCase() : 'U' %></div><div class="user-copy"><strong><%= user?.name || '' %></strong><small><%= user?.role === 'admin' ? 'Administrador' : 'Usuário' %></small></div><a class="logout-icon" href="/auth/logout" title="Sair">↗</a></div>
+</aside>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= pageTitle %> · RouteX</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-panel auth-intro">
+      <div class="brand brand-large"><span class="brand-mark">RX</span><span>Route<strong>X</strong></span></div>
+      <h1>Crie seu acesso</h1>
+      <p>As senhas são armazenadas com hash e a conta fica no PostgreSQL compartilhado do RouteX Cloud.</p>
+    </section>
+    <section class="auth-panel auth-form-panel">
+      <div class="auth-form-wrap">
+        <span class="eyebrow">Cadastro</span>
+        <h2>Nova conta</h2>
+        <%- include('partials/messages') %>
+        <form method="post" action="/auth/register" class="stack-form">
+          <label>Nome<input type="text" name="name" required autocomplete="name"></label>
+          <label>E-mail<input type="email" name="email" required autocomplete="email"></label>
+          <label>Senha<input type="password" name="password" minlength="8" required autocomplete="new-password"></label>
+          <label>Confirmar senha<input type="password" name="password2" minlength="8" required autocomplete="new-password"></label>
+          <button class="button button-primary button-block" type="submit">Criar conta</button>
+        </form>
+        <p class="auth-link"><a href="/auth/login">Voltar ao login</a></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

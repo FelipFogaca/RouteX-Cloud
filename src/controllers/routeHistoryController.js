@@ -1,0 +1,6 @@
+const routes=require('../repositories/routeRepository'); const {generateRouteXlsxBuffer}=require('../utils/excelGenerator');
+async function index(req,res){res.render('route-history',{pageTitle:'Rotas geradas',routes:await routes.listByUser(req.session.user.id)});}
+async function show(req,res){const route=await routes.findById(req.params.id);if(!route||(route.user_id!==req.session.user.id&&req.session.user.role!=='admin')){req.flash('error_msg','Rota não encontrada ou sem permissão.');return res.redirect('/routes');}res.render('route-detail',{pageTitle:'Detalhes da rota',route,orderedStops:ordered(route)});}
+async function exportXlsx(req,res){const route=await routes.findById(req.params.id);if(!route||(route.user_id!==req.session.user.id&&req.session.user.role!=='admin'))return res.status(403).send('Sem permissão.');const buffer=await generateRouteXlsxBuffer({stops:ordered(route)});res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');res.setHeader('Content-Disposition',`attachment; filename="RouteX-rota-${route.id}.xlsx"`);res.send(buffer);}
+function ordered(route){const stops=Array.isArray(route.stops_json)?route.stops_json:[];const seq=Array.isArray(route.sequence_json)?route.sequence_json:[];return seq.map(id=>stops.find(s=>s.id===id)).filter(Boolean);}
+module.exports={index,show,exportXlsx};

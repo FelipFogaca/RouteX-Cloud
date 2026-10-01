@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= pageTitle %> · RouteX</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('partials/topbar', { activePage: 'locations' }) %>
+  <main class="page-shell">
+    <div class="page-heading">
+      <div><span class="eyebrow">Malha logística · Pontos recorrentes</span><h1>Pontos operacionais</h1><p>Cadastre depósitos, lojas, fornecedores, transportadoras e outros endereços usados na operação de entrega.</p></div>
+      <a href="/RouteX" class="button button-secondary">Voltar ao planejador</a>
+    </div>
+    <%- include('partials/messages') %>
+
+    <section class="grid-two location-layout">
+      <article class="card sticky-card">
+        <div class="card-heading"><div><span class="step-badge"><%= editing ? 'E' : '+' %></span><div><h2><%= editing ? 'Editar local' : 'Novo local' %></h2><p>Os dados ficam salvos no PostgreSQL compartilhado.</p></div></div></div>
+        <form class="form-grid compact" method="post" action="<%= editing ? `/RouteX/locations/${editing.id}` : '/RouteX/locations' %>" data-cep-form>
+          <label class="field field-span-2">Nome do local<input name="name" required value="<%= editing?.name || '' %>" placeholder="Ex.: Transportadora X"></label>
+          <label class="field">Tipo<select name="location_type"><option value="saved" <%= editing?.location_type !== 'store' ? 'selected' : '' %>>Local cadastrado</option><option value="store" <%= editing?.location_type === 'store' ? 'selected' : '' %>>Loja</option></select></label>
+          <label class="field">Telefone / contato<input name="phone" value="<%= editing?.phone || '' %>"></label>
+          <label class="field field-span-2 cep-priority">CEP
+            <input name="zip_code" inputmode="numeric" maxlength="9" required value="<%= editing?.zip_code || '' %>" placeholder="00000-000" autocomplete="postal-code" data-cep>
+            <small class="cep-status" data-cep-status data-kind="idle">Informe o CEP primeiro. Logradouro, bairro, cidade e UF serão preenchidos automaticamente.</small>
+          </label>
+          <label class="field field-span-2">Logradouro<input name="street" required value="<%= editing?.street || '' %>" data-address-street></label>
+          <label class="field">Número<input name="number" required value="<%= editing?.number || '' %>" data-address-number></label>
+          <label class="field">Complemento<input name="complement" value="<%= editing?.complement || '' %>"></label>
+          <label class="field">Bairro<input name="neighborhood" required value="<%= editing?.neighborhood || '' %>" data-address-neighborhood></label>
+          <label class="field">Cidade<input name="city" required value="<%= editing?.city || '' %>" data-address-city></label>
+          <label class="field">UF<input name="state" maxlength="2" required value="<%= editing?.state || '' %>" data-address-state></label>
+          <label class="field field-span-2">Observação<textarea name="notes" rows="3"><%= editing?.notes || '' %></textarea></label>
+          <div class="field-span-2 form-actions">
+            <button class="button button-primary" type="submit"><%= editing ? 'Salvar alterações' : 'Cadastrar local' %></button>
+            <% if (editing) { %><a class="button button-ghost" href="/RouteX/locations">Cancelar edição</a><% } %>
+          </div>
+        </form>
+      </article>
+
+      <article class="card">
+        <div class="card-heading"><div><span class="step-badge"><%= locations.length %></span><div><h2>Locais disponíveis</h2><p>Podem ser incluídos rapidamente em qualquer rota.</p></div></div></div>
+        <div class="location-list">
+          <% locations.forEach(function(location) { %>
+            <div class="location-item">
+              <div class="location-main">
+                <span class="type-pill <%= location.location_type === 'store' ? 'type-store' : '' %>"><%= location.location_type === 'store' ? 'Loja' : 'Local' %></span>
+                <h3><%= location.name %></h3>
+                <p><%= location.street %>, <%= location.number %><%= location.complement ? ` - ${location.complement}` : '' %> · <%= location.neighborhood %> · <%= location.city %>/<%= location.state %><%= location.zip_code ? ` · CEP ${location.zip_code}` : '' %></p>
+                <% if (location.notes) { %><small><%= location.notes %></small><% } %>
+              </div>
+              <div class="row-actions">
+                <a class="icon-button" href="/RouteX/locations?edit=<%= location.id %>" title="Editar">Editar</a>
+                <form method="post" action="/RouteX/locations/<%= location.id %>/delete" onsubmit="return confirm('Excluir este local cadastrado?')">
+                  <button class="icon-button danger" type="submit">Excluir</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="/js/address.js"></script>
+</body>
+</html>

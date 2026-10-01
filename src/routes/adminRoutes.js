@@ -1,0 +1,1 @@
+const express=require('express');const c=require('../controllers/adminController');const ah=require('../utils/asyncHandler');const r=express.Router();r.get('/',ah(c.index));r.post('/users/:id/reset-password',ah(c.resetPassword));module.exports=r;

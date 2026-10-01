@@ -1,0 +1,15 @@
+<% if (errorMessages && errorMessages.length) { %>
+  <div class="messages">
+    <% errorMessages.forEach(function(message) { %><div class="alert alert-error">⚠ <span><%= message %></span></div><% }) %>
+  </div>
+<% } %>
+<% if (warningMessages && warningMessages.length) { %>
+  <div class="messages">
+    <% warningMessages.forEach(function(message) { %><div class="alert alert-warning">! <span><%= message %></span></div><% }) %>
+  </div>
+<% } %>
+<% if (successMessages && successMessages.length) { %>
+  <div class="messages">
+    <% successMessages.forEach(function(message) { %><div class="alert alert-success">✓ <span><%= message %></span></div><% }) %>
+  </div>
+<% } %>

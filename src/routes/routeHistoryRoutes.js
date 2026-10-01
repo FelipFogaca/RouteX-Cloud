@@ -1,0 +1,1 @@
+const express=require('express');const c=require('../controllers/routeHistoryController');const ah=require('../utils/asyncHandler');const r=express.Router();r.get('/',ah(c.index));r.get('/:id',ah(c.show));r.get('/:id/export.xlsx',ah(c.exportXlsx));module.exports=r;

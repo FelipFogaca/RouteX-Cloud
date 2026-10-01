@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= pageTitle %> · RouteX</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-panel auth-intro">
+      <div class="brand brand-large"><span class="brand-mark">RX</span><span>Route<strong>X</strong></span></div>
+      <h1>Planejamento operacional de rotas</h1>
+      <p>Rotas, histórico operacional e agenda compartilhada do veículo em uma única central logística.</p>
+      <div class="auth-feature-grid">
+        <span>Otimização de rotas</span><span>Histórico por usuário</span><span>Agenda compartilhada</span><span>Google Maps + XLSX</span>
+      </div>
+    </section>
+    <section class="auth-panel auth-form-panel">
+      <div class="auth-form-wrap">
+        <span class="eyebrow">Acesso ao sistema</span>
+        <h2>Entrar</h2>
+        <p class="muted">Use sua conta já cadastrada ou crie uma nova.</p>
+        <%- include('partials/messages') %>
+        <form method="post" action="/auth/login" class="stack-form">
+          <label>E-mail<input type="email" name="email" required autocomplete="email" autofocus></label>
+          <label>Senha<input type="password" name="password" required autocomplete="current-password"></label>
+          <button class="button button-primary button-block" type="submit">Entrar no RouteX</button>
+        </form>
+        <p class="auth-link">Primeiro acesso? <a href="/auth/register">Criar conta</a></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

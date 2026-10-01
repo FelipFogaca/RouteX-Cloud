@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= pageTitle %> · RouteX</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('partials/topbar', { activePage: 'planner' }) %>
+  <main class="page-shell">
+    <div class="page-heading">
+      <div><span class="eyebrow">Operação logística · Expedição</span><h1>Central de roteirização</h1><p>Monte a viagem de entrega, valide a origem, organize paradas e gere a sequência operacional antes da expedição.</p></div>
+      <form method="post" action="/RouteX/clear" onsubmit="return confirm('Limpar todo o planejamento atual?')"><button class="button button-ghost" type="submit">Limpar planejamento</button></form>
+    </div>
+    <%- include('partials/messages') %>
+
+    <section class="dispatch-overview no-print">
+      <div class="dispatch-card"><span class="dispatch-icon">NF</span><div><small>Entregas importadas</small><strong><%= stops.filter(x => x.sourceType === 'nfe').length %></strong></div></div>
+      <div class="dispatch-card"><span class="dispatch-icon">●</span><div><small>Paradas no roteiro</small><strong><%= stops.length %></strong></div></div>
+      <div class="dispatch-card <%= origin ? 'ready' : '' %>"><span class="dispatch-icon">↗</span><div><small>Ponto de partida</small><strong><%= origin ? 'Definido' : 'Pendente' %></strong></div></div>
+      <div class="dispatch-card"><span class="dispatch-icon">⇄</span><div><small>Regras de sequência</small><strong><%= rules.length %></strong></div></div>
+    </section>
+
+    <section class="workflow-strip workflow-six no-print">
+      <a href="#importacao"><b>1</b><span>Carregar NF-e</span></a>
+      <a href="#origem"><b>2</b><span>Definir saída</span></a>
+      <a href="#preparacao"><b>3</b><span>Montar roteiro</span></a>
+      <a href="#regras"><b>4</b><span>Sequência</span></a>
+      <a href="#otimizacao"><b>5</b><span>Roteirizar</span></a>
+      <a href="#resultado"><b>6</b><span>Expedição</span></a>
+    </section>
+
+    <section class="card" id="importacao">
+      <div class="card-heading">
+        <div><span class="step-badge">1</span><div><h2>Importar XMLs</h2><p>As NF-e entram na preparação e o remetente fica disponível como opção de partida.</p></div></div>
+        <span class="status-chip"><%= stops.filter(x => x.sourceType === 'nfe').length %> NF-e</span>
+      </div>
+      <form method="post" action="/RouteX/import" enctype="multipart/form-data" id="xmlForm" class="upload-zone upload-wide">
+        <input type="file" id="xmlFiles" name="xmlFiles" accept=".xml,text/xml,application/xml" multiple required>
+        <label for="xmlFiles"><strong>Selecionar XMLs de NF-e</strong><span>Até 100 XMLs · em publicação Vercel, mantenha cada lote abaixo de 4 MB</span></label>
+        <div id="fileSummary" class="file-summary">Nenhum arquivo selecionado.</div>
+        <button class="button button-primary" type="submit">Importar entregas</button>
+      </form>
+    </section>
+
+    <section class="card" id="origem">
+      <div class="card-heading">
+        <div><span class="step-badge">2</span><div><h2>Endereço de partida</h2><p>Escolha um local cadastrado, utilize o remetente da NF-e ou informe uma origem manual.</p></div></div>
+        <span class="status-chip <%= origin ? 'status-ok' : '' %>"><%= origin ? 'Partida definida' : 'Partida pendente' %></span>
+      </div>
+
+      <div class="origin-selection-grid">
+        <div class="origin-current">
+          <span class="mini-label">Partida atual</span>
+          <% if (origin) { %>
+            <h3><%= origin.locationName || origin.recipient %></h3>
+            <p><%= origin.savedLocationId ? origin.tableAddress : origin.originAddress %></p>
+            <small>Na roteirização, o complemento é ignorado propositalmente.</small>
+          <% } else { %>
+            <h3>Nenhuma partida definida</h3>
+            <p>Escolha uma das opções ao lado antes de gerar a rota.</p>
+          <% } %>
+        </div>
+
+        <div class="origin-options no-print">
+          <div class="origin-option-card">
+            <h3>Local cadastrado</h3>
+            <% if (savedLocations.length) { %>
+              <form method="post" action="/RouteX/origin/saved" class="saved-add-form">
+                <select name="locationId" required>
+                  <option value="">Selecione a partida...</option>
+                  <% savedLocations.forEach(function(location) { %><option value="<%= location.id %>"><%= location.name %> — <%= location.city %>/<%= location.state %></option><% }) %>
+                </select>
+                <button class="button button-primary" type="submit">Usar como partida</button>
+              </form>
+            <% } else { %><p class="muted">Nenhum local cadastrado.</p><% } %>
+          </div>
+
+          <% if (xmlOrigin) { %>
+          <div class="origin-option-card">
+            <div><h3>Remetente da NF-e</h3><p><%= xmlOrigin.originAddress %></p></div>
+            <form method="post" action="/RouteX/origin/xml"><button class="button button-secondary" type="submit">Usar remetente</button></form>
+          </div>
+          <% } %>
+
+          <div class="origin-option-card">
+            <div><h3>Endereço manual</h3><p>Use quando a partida não estiver cadastrada.</p></div>
+            <button type="button" class="button button-secondary" data-toggle-panel="manualOriginPanel">Informar manualmente</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="manualOriginPanel" class="inline-panel hidden no-print">
+        <h3>Definir partida manual</h3>
+        <form method="post" action="/RouteX/origin/manual" class="form-grid compact" data-cep-form>
+          <label class="field field-span-2">Nome da origem<input name="name" required placeholder="Ex.: Depósito temporário"></label>
+          <label class="field field-span-2 cep-priority">CEP
+            <input name="zipCode" inputmode="numeric" maxlength="9" required placeholder="00000-000" autocomplete="postal-code" data-cep>
+            <small class="cep-status" data-cep-status data-kind="idle">Informe o CEP primeiro. Logradouro, bairro, cidade e UF serão preenchidos automaticamente.</small>
+          </label>
+          <label class="field field-span-2">Logradouro<input name="street" required data-address-street></label>
+          <label class="field">Número<input name="number" required data-address-number></label>
+          <label class="field">Complemento<input name="complement"></label>
+          <label class="field">Bairro<input name="neighborhood" required data-address-neighborhood></label>
+          <label class="field">Cidade<input name="city" required data-address-city></label>
+          <label class="field">UF<input name="state" maxlength="2" required data-address-state></label>
+          <label class="field">Telefone / contato<input name="phone"></label>
+          <div class="field-span-2"><button class="button button-primary" type="submit">Definir como partida</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card" id="preparacao">
+      <div class="card-heading">
+        <div><span class="step-badge">3</span><div><h2>Preparação da rota</h2><p>Visualize tudo que participará da otimização antes de calcular a rota.</p></div></div>
+        <span class="status-chip"><%= stops.length %> parada<%= stops.length === 1 ? '' : 's' %></span>
+      </div>
+
+      <div class="prep-actions no-print">
+        <button type="button" class="button button-secondary" data-toggle-panel="manualPanel">+ Parada manual / coleta</button>
+        <button type="button" class="button button-secondary" data-toggle-panel="savedPanel">+ Local cadastrado</button>
+        <a class="button button-ghost" href="/RouteX/locations">Gerenciar locais</a>
+      </div>
+
+      <div id="manualPanel" class="inline-panel hidden no-print">
+        <h3>Adicionar parada manual</h3>
+        <form method="post" action="/RouteX/stops/manual" class="form-grid compact" data-cep-form>
+          <label class="field">Tipo<select name="sourceType"><option value="manual">Parada manual</option><option value="pickup">Coleta</option></select></label>
+          <label class="field">Nome da parada<input name="name" required placeholder="Ex.: Coleta fornecedor ABC"></label>
+          <label class="field field-span-2 cep-priority">CEP
+            <input name="zipCode" inputmode="numeric" maxlength="9" required placeholder="00000-000" autocomplete="postal-code" data-cep>
+            <small class="cep-status" data-cep-status data-kind="idle">Informe o CEP primeiro. O endereço será preenchido automaticamente.</small>
+          </label>
+          <label class="field field-span-2">Logradouro<input name="street" required data-address-street></label>
+          <label class="field">Número<input name="number" required data-address-number></label>
+          <label class="field">Complemento<input name="complement"></label>
+          <label class="field">Bairro<input name="neighborhood" required data-address-neighborhood></label>
+          <label class="field">Cidade<input name="city" required data-address-city></label>
+          <label class="field">UF<input name="state" maxlength="2" required data-address-state></label>
+          <label class="field">Telefone / contato<input name="phone"></label>
+          <label class="field field-span-2">Observação<textarea name="notes" rows="2"></textarea></label>
+          <div class="field-span-2"><button class="button button-primary" type="submit">Adicionar à preparação</button></div>
+        </form>
+      </div>
+
+      <div id="savedPanel" class="inline-panel hidden no-print">
+        <h3>Adicionar local cadastrado</h3>
+        <% if (savedLocations.length) { %>
+          <form method="post" action="/RouteX/stops/saved" class="saved-add-form">
+            <select name="locationId" required><option value="">Selecione...</option><% savedLocations.forEach(function(location) { %><option value="<%= location.id %>"><%= location.name %> — <%= location.city %>/<%= location.state %></option><% }) %></select>
+            <button class="button button-primary" type="submit">Adicionar local</button>
+          </form>
+          <p class="helper-text">O mesmo local pode ser adicionado mais de uma vez. Cada inclusão será tratada como uma parada independente.</p>
+        <% } else { %><p>Nenhum local cadastrado. <a href="/RouteX/locations">Cadastrar agora</a>.</p><% } %>
+      </div>
+
+      <div class="table-wrapper prep-table">
+        <table>
+          <thead><tr><th>Tipo</th><th>PV</th><th>NF / identificação</th><th>Destinatário / nome</th><th>Cidade</th><th>Endereço</th><th class="no-print">Ação</th></tr></thead>
+          <tbody>
+            <% if (!stops.length) { %><tr><td colspan="7" class="empty-table">Importe XMLs ou adicione uma parada para começar.</td></tr><% } %>
+            <% stops.forEach(function(stop) { %>
+              <tr>
+                <td><span class="type-pill type-<%= stop.sourceType %>"><%= stop.typeLabel %></span></td>
+                <td><%= stop.pv || '—' %></td>
+                <td><strong><%= stop.nf ? `NF ${stop.nf}` : stop.displayName %></strong></td>
+                <td><%= stop.recipient || stop.locationName %></td>
+                <td><%= stop.city %>/<%= stop.state %></td>
+                <td><%= stop.tableAddress %></td>
+                <td class="no-print"><form method="post" action="/RouteX/stops/<%= stop.id %>/delete" onsubmit="return confirm('Remover esta parada da rota?')"><button class="text-button danger" type="submit">Remover</button></form></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" id="regras">
+      <div class="card-heading">
+        <div><span class="step-badge">4</span><div><h2>Regras da rota</h2><p>Defina precedências e, se necessário, fixe qual parada deve encerrar a rota.</p></div></div>
+        <span class="status-chip"><%= rules.length %> precedência<%= rules.length === 1 ? '' : 's' %><%= finalStop ? ' · destino final definido' : '' %></span>
+      </div>
+
+      <% if (stops.length) { %>
+        <div class="final-destination-panel no-print">
+          <div class="final-destination-copy">
+            <span class="final-destination-icon">◎</span>
+            <div><strong>Destino final da rota</strong><small>Esta parada será obrigatoriamente a última, e o otimizador calculará a melhor sequência das demais antes dela.</small></div>
+          </div>
+          <form class="final-destination-form" method="post" action="/RouteX/final-destination">
+            <label>Última parada
+              <select name="finalStopId" required>
+                <option value="">Selecione...</option>
+                <% stops.forEach(function(stop) { %>
+                  <option value="<%= stop.id %>" <%= finalStop && finalStop.id === stop.id ? 'selected' : '' %>><%= stop.displayName %> — <%= stop.city %>/<%= stop.state %></option>
+                <% }) %>
+              </select>
+            </label>
+            <button class="button button-primary" type="submit"><%= finalStop ? 'Alterar destino final' : 'Definir destino final' %></button>
+          </form>
+          <% if (finalStop) { %>
+            <div class="final-destination-current">
+              <div><span>Destino final atual</span><strong><%= finalStop.displayName %></strong><small><%= finalStop.tableAddress %></small></div>
+              <form method="post" action="/RouteX/final-destination/clear"><button class="text-button danger" type="submit">Remover destino final</button></form>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
+      <% if (stops.length >= 2) { %>
+        <form class="rule-builder no-print" method="post" action="/RouteX/rules">
+          <label>Parada<select name="firstId" required><option value="">Selecione...</option><% stops.forEach(function(stop) { %><option value="<%= stop.id %>"><%= stop.displayName %> — <%= stop.city %>/<%= stop.state %></option><% }) %></select></label>
+          <label>Deve ocorrer<select name="relation"><option value="before">Antes de</option><option value="after">Depois de</option></select></label>
+          <label>Parada<select name="secondId" required><option value="">Selecione...</option><% stops.forEach(function(stop) { %><option value="<%= stop.id %>"><%= stop.displayName %> — <%= stop.city %>/<%= stop.state %></option><% }) %></select></label>
+          <button class="button button-primary" type="submit">Adicionar regra</button>
+        </form>
+      <% } else { %><p class="muted-box">São necessárias pelo menos duas paradas para criar uma regra.</p><% } %>
+
+      <div class="rule-list">
+        <% if (!rules.length) { %><div class="empty-rule">Nenhuma regra definida. A otimização ficará livre para escolher a sequência.</div><% } %>
+        <% rules.forEach(function(rule) { %>
+          <div class="rule-item"><span><strong><%= rule.before?.displayName %></strong> deve ocorrer <b>antes de</b> <strong><%= rule.after?.displayName %></strong></span><form class="no-print" method="post" action="/RouteX/rules/<%= rule.id %>/delete"><button type="submit" class="text-button danger">Remover</button></form></div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="card optimization-card" id="otimizacao">
+      <div class="card-heading">
+        <div><span class="step-badge">5</span><div><h2>Gerar e otimizar a rota</h2><p>O endereço enviado ao cálculo não contém complemento. A tabela operacional mantém o complemento e omite o CEP.</p></div></div>
+      </div>
+      <div class="optimization-grid">
+        <div class="check-list">
+          <span class="<%= origin ? 'check-ok' : '' %>">Partida <b><%= origin ? 'OK' : 'pendente' %></b></span>
+          <span class="<%= stops.length ? 'check-ok' : '' %>">Paradas <b><%= stops.length %></b></span>
+          <span class="check-ok">Regras <b><%= rules.length %></b></span>
+          <span class="<%= finalStop ? 'check-ok' : '' %>">Destino final <b><%= finalStop ? finalStop.displayName : 'livre' %></b></span>
+        </div>
+        <form method="post" action="/RouteX/optimize" class="no-print optimize-form-cloud">
+          <label class="field"><span>Nome da rota (opcional)</span><input name="routeTitle" maxlength="120" placeholder="Ex.: Entregas Curitiba 01/10"></label>
+          <button class="button button-primary button-large" type="submit" <%= !origin || !stops.length ? 'disabled' : '' %>>Otimizar e salvar rota</button>
+        </form>
+      </div>
+    </section>
+
+    <% if (result) { %>
+    <section class="card result-card" id="resultado">
+      <div class="card-heading result-heading">
+        <div><span class="step-badge">6</span><div><h2>Rota otimizada</h2><p>Provedor de cálculo: <strong><%= result.provider %></strong><%= result.isRoadBased ? ' · por vias' : ' · fallback geográfico' %><% if (result.algorithm) { %> · <%= result.algorithm %><% } %>.</p></div></div>
+        <div class="result-actions no-print"><a class="button button-primary" href="/RouteX/export.xlsx">Exportar planilha otimizada</a><% if (result.savedRouteId) { %><a class="button button-secondary" href="/routes/<%= result.savedRouteId %>">Abrir no histórico</a><% } %><button type="button" class="button button-ghost" onclick="window.print()">Imprimir</button></div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric"><span>NF-e</span><strong><%= result.orderedStops.filter(x => x.stop.sourceType === 'nfe').length %></strong></div>
+        <div class="metric"><span>Paradas</span><strong><%= result.orderedStops.length %></strong></div>
+        <div class="metric"><span>Volumes</span><strong><%= formatNumber(result.orderedStops.reduce((sum, x) => sum + Number(x.stop.volumes || 0), 0), 0) %></strong></div>
+        <div class="metric"><span>Peso total</span><strong><%= formatNumber(result.orderedStops.reduce((sum, x) => sum + Number(x.stop.grossWeight || 0), 0), 2) %> kg</strong></div>
+        <div class="metric"><span>Distância</span><strong><%= formatDistance(result.totalDistanceMeters) %></strong></div>
+        <div class="metric"><span>Tempo estimado</span><strong><%= formatDuration(result.totalDurationSeconds) %></strong></div>
+      </div>
+
+      <% if (result.warnings && result.warnings.length) { %><div class="route-warning"><strong>Avisos do cálculo:</strong><ul><% result.warnings.forEach(function(w) { %><li><%= w %></li><% }) %></ul></div><% } %>
+
+      <div class="maps-bar no-print">
+        <div><strong>Google Maps</strong><span>A sequência é enviada exatamente na ordem otimizada. O complemento não é enviado à rota.</span></div>
+        <div class="map-links"><% result.mapLinks.forEach(function(link) { %><a class="button button-maps" href="<%= link.url %>" target="_blank" rel="noopener">Trecho <%= link.part %> ↗</a><% }) %></div>
+      </div>
+
+      <div class="route-origin-row"><span>Partida</span><div><strong><%= origin.recipient || origin.locationName %></strong><small><%= origin.savedLocationId ? origin.tableAddress : origin.originAddress %></small></div></div>
+      <div class="table-wrapper result-table">
+        <table>
+          <thead><tr><th>PV</th><th>NF</th><th>Volumes</th><th>Destinatário</th><th>Endereço</th><th>Contato</th><th>Peso</th><th class="no-print">Ajustar</th></tr></thead>
+          <tbody>
+            <% result.orderedStops.forEach(function(entry, index) { %>
+              <tr>
+                <td class="route-sequence" data-order="<%= index + 1 %>"><strong><%= entry.stop.pv || '—' %></strong></td>
+                <td><%= entry.stop.nf || '—' %></td>
+                <td><%= entry.stop.volumes === null ? '—' : formatNumber(entry.stop.volumes, 0) %></td>
+                <td><%= entry.stop.recipient || entry.stop.locationName %><% if (result.finalStopId === entry.stop.id) { %> <span class="final-stop-badge">Destino final</span><% } %></td>
+                <td><%= entry.stop.tableAddress %></td>
+                <td><%= formatPhone(entry.stop.phone) %></td>
+                <td><%= entry.stop.grossWeight === null ? '—' : `${formatNumber(entry.stop.grossWeight, 3)} kg` %></td>
+                <td class="no-print reorder-cell">
+                  <form method="post" action="/RouteX/reorder"><input type="hidden" name="stopId" value="<%= entry.stop.id %>"><input type="hidden" name="direction" value="up"><button class="move-button" type="submit" title="Subir" <%= index === 0 || result.finalStopId === entry.stop.id ? 'disabled' : '' %>>↑</button></form>
+                  <form method="post" action="/RouteX/reorder"><input type="hidden" name="stopId" value="<%= entry.stop.id %>"><input type="hidden" name="direction" value="down"><button class="move-button" type="submit" title="Descer" <%= index === result.orderedStops.length - 1 || (result.finalStopId && index === result.orderedStops.length - 2) ? 'disabled' : '' %>>↓</button></form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="result-footnote">A ordem das linhas é a sequência da rota. Ajustes que violem uma regra de precedência ou retirem o destino final da última posição continuam bloqueados.</p>
+    </section>
+    <% } %>
+  </main>
+  <script src="/js/address.js"></script>
+  <script src="/js/planner.js"></script>
+</body>
+</html>

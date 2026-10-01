@@ -1,0 +1,14 @@
+const { randomUUID } = require('crypto');
+const db = require('../database/db');
+async function create({userId,title,origin,stops,rules,finalStopId,result}) {
+  const id=randomUUID();
+  const orderedStops=(result.sequenceIds||[]).map(id=>stops.find(s=>s.id===id)).filter(Boolean);
+  const summary={nfCount:orderedStops.filter(s=>s.sourceType==='nfe').length,stopCount:orderedStops.length,volumes:orderedStops.reduce((n,s)=>n+Number(s.volumes||0),0),grossWeight:orderedStops.reduce((n,s)=>n+Number(s.grossWeight||0),0)};
+  await db.query(`INSERT INTO route_history(id,user_id,title,origin_json,stops_json,rules_json,final_stop_id,sequence_json,map_links_json,summary_json,provider,algorithm,total_distance_meters,total_duration_seconds) VALUES($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13,$14)`,[id,userId,title||`Rota ${new Date().toLocaleDateString('pt-BR')}`,JSON.stringify(origin),JSON.stringify(stops),JSON.stringify(rules||[]),finalStopId||null,JSON.stringify(result.sequenceIds||[]),JSON.stringify(result.mapLinks||[]),JSON.stringify(summary),result.provider||'',result.algorithm||'',result.totalDistanceMeters??null,result.totalDurationSeconds??null]);
+  return findById(id);
+}
+async function updateResult(id,userId,{stops,result}) { const orderedStops=(result.sequenceIds||[]).map(x=>stops.find(s=>s.id===x)).filter(Boolean); const summary={nfCount:orderedStops.filter(s=>s.sourceType==='nfe').length,stopCount:orderedStops.length,volumes:orderedStops.reduce((n,s)=>n+Number(s.volumes||0),0),grossWeight:orderedStops.reduce((n,s)=>n+Number(s.grossWeight||0),0)}; const {rows}=await db.query(`UPDATE route_history SET stops_json=$1::jsonb,sequence_json=$2::jsonb,map_links_json=$3::jsonb,summary_json=$4::jsonb,total_distance_meters=$5,total_duration_seconds=$6,updated_at=NOW() WHERE id=$7 AND user_id=$8 RETURNING *`,[JSON.stringify(stops),JSON.stringify(result.sequenceIds||[]),JSON.stringify(result.mapLinks||[]),JSON.stringify(summary),result.totalDistanceMeters??null,result.totalDurationSeconds??null,id,userId]); return rows[0]||null; }
+async function findById(id){ const {rows}=await db.query(`SELECT r.*,u.name AS user_name,u.email AS user_email FROM route_history r JOIN users u ON u.id=r.user_id WHERE r.id=$1 LIMIT 1`,[id]); return rows[0]||null; }
+async function listByUser(userId,limit=null){ const sql='SELECT * FROM route_history WHERE user_id=$1 ORDER BY generated_at DESC'+(limit?' LIMIT $2':''); const params=limit?[userId,limit]:[userId]; const {rows}=await db.query(sql,params); return rows; }
+async function listAll(limit=null){ const sql=`SELECT r.*,u.name AS user_name,u.email AS user_email FROM route_history r JOIN users u ON u.id=r.user_id ORDER BY r.generated_at DESC${limit?' LIMIT $1':''}`; const {rows}=await db.query(sql,limit?[limit]:[]); return rows; }
+module.exports={create,updateResult,findById,listByUser,listAll};

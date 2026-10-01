@@ -1,0 +1,1 @@
+const express=require('express');const c=require('../controllers/locationController');const ah=require('../utils/asyncHandler');const r=express.Router();r.get('/',ah(c.index));r.post('/',ah(c.create));r.post('/:id',ah(c.update));r.post('/:id/delete',ah(c.remove));module.exports=r;
